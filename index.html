@@ -2,42 +2,80 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Juego de Familias de 7 Etnias</title>
   <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     body {
       font-family: sans-serif;
       text-align: center;
       background-color: #f0f0f0;
-      transform: rotate(90deg);
-      transform-origin: top left;
-      width: 100vh;
-      height: 100vw;
-      overflow-x: hidden;
-      position: absolute;
+      margin: 0;
+      padding: 10px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    .orientacion {
-      position: absolute;
-      top: 10px;
-      left: 10px;
+
+    .nivel-selector {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+      justify-content: center;
+    }
+
+    .nivel-btn {
+      padding: 8px 16px;
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      border: none;
+      border-radius: 5px;
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .nivel-btn.activo {
+      background-color: #2980b9;
+    }
+
+    .rotacion-mensaje {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       background: #fff6c4;
       border: 1px solid #ccc;
       padding: 10px;
       font-size: 14px;
       border-radius: 6px;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-      max-width: 80vw;
+      max-width: 90vw;
+      z-index: 1000;
     }
+
+    .rotacion-mensaje.visible {
+      display: block;
+    }
+
     .tablero {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 5px;
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      padding: 5px;
     }
+
     .carta {
-      width: 100px;
-      height: 140px;
-      margin: 5px;
+      aspect-ratio: 2/3;
       background-color: white;
       border: 2px solid #ccc;
       border-radius: 8px;
@@ -50,12 +88,15 @@
       overflow: hidden;
       position: relative;
       perspective: 1000px;
+      touch-action: manipulation;
     }
+
     .carta img {
       width: 100%;
-      height: auto;
-      object-fit: contain;
+      height: 100%;
+      object-fit: cover;
     }
+
     .cara, .dorso {
       position: absolute;
       width: 100%;
@@ -63,64 +104,89 @@
       backface-visibility: hidden;
       transition: transform 0.5s;
     }
+
     .cara {
       transform: rotateY(180deg);
     }
+
     .dorso {
       background-color: #666;
       display: flex;
       justify-content: center;
       align-items: center;
     }
+
     .dorso img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
+
     .carta.volteada .cara {
       transform: rotateY(0deg);
     }
+
     .carta.volteada .dorso {
       transform: rotateY(180deg);
     }
+
     #contador {
-      margin-top: 10px;
+      font-size: clamp(1rem, 3vw, 1.2rem);
+      margin: 10px 0;
       font-weight: bold;
     }
+
     #reiniciar {
-      margin-top: 15px;
       padding: 10px 20px;
-      font-size: 16px;
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
       border: none;
       border-radius: 5px;
       background-color: #3498db;
       color: white;
       cursor: pointer;
+      margin: 10px 0;
+      touch-action: manipulation;
     }
-    @media (min-width: 601px) {
-      body {
-        transform: none;
-        width: 100%;
-        height: auto;
-        position: static;
+
+    #reiniciar:active {
+      background-color: #2980b9;
+    }
+
+    @media (orientation: landscape) {
+      .tablero {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
       }
-      .orientacion {
-        display: none;
+      .rotacion-mensaje {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .tablero {
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        gap: 3px;
+      }
+
+      .carta {
+        border-width: 1px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="orientacion">🔁 Por favor, gira tu móvil para jugar en horizontal.</div>
-  <h1>Juego de Familias del Mundo</h1>
-  <p>Empareja cartas del mismo tipo (abuela/abuelo, padre/madre, hijo/hija) y etnia.</p>
+  <div class="rotacion-mensaje">🔁 Para una mejor experiencia, gira tu móvil horizontalmente</div>
+  <div class="nivel-selector">
+    <button class="nivel-btn activo" data-nivel="1">Nivel 1</button>
+    <button class="nivel-btn" data-nivel="2">Nivel 2</button>
+    <button class="nivel-btn" data-nivel="3">Nivel 3</button>
+  </div>
   <div id="contador">Intentos: 0</div>
   <button id="reiniciar">Reiniciar juego</button>
   <div class="tablero" id="tablero"></div>
 
   <script>
     const etnias = ["Arabe", "Bantu", "Chino", "Esquimal", "Mexicano", "Tiroles", "Indio"];
-    const parejas = [
+    const todasParejas = [
       ["Abuela", "Abuelo"],
       ["Padre", "Madre"],
       ["Hijo", "Hija"]
@@ -129,7 +195,9 @@
     let cartas = [];
     let seleccionadas = [];
     let intentos = 0;
+    let nivelActual = 1;
     const contador = document.getElementById("contador");
+    const rotacionMensaje = document.querySelector('.rotacion-mensaje');
 
     function barajar(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -141,15 +209,41 @@
 
     function esPareja(c1, c2) {
       if (c1.etnia !== c2.etnia) return false;
-      return parejas.some(par => par.includes(c1.rol) && par.includes(c2.rol));
+      return todasParejas.some(par => par.includes(c1.rol) && par.includes(c2.rol));
     }
 
     function comprobarVictoria() {
       const cartasVolteadas = document.querySelectorAll('.carta.volteada');
       if (cartasVolteadas.length === cartas.length) {
         setTimeout(() => {
-          alert(`¡Has ganado en ${intentos} intentos!`);
+          const mensaje = `¡Has ganado el Nivel ${nivelActual} en ${intentos} intentos! 🎉\n\nJuega también en: https://chaitochai.github.io/Familias/`;
+          const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(mensaje)}`;
+          
+          if (confirm(`¡Has ganado el Nivel ${nivelActual} en ${intentos} intentos! 🎉\n\n¿Quieres compartir tu victoria en WhatsApp?`)) {
+            window.location.href = whatsappUrl;
+          }
         }, 300);
+      }
+    }
+
+    function obtenerParejasParaNivel(nivel) {
+      switch(nivel) {
+        case 1:
+          return [todasParejas[1]]; // Solo padre/madre
+        case 2:
+          return [todasParejas[1], todasParejas[2]]; // padre/madre y hijo/hija
+        case 3:
+          return todasParejas; // Todas las parejas
+        default:
+          return [todasParejas[1]];
+      }
+    }
+
+    function actualizarMensajeRotacion() {
+      if ((nivelActual === 1 || nivelActual === 2) && window.innerHeight > window.innerWidth) {
+        rotacionMensaje.classList.add('visible');
+      } else {
+        rotacionMensaje.classList.remove('visible');
       }
     }
 
@@ -161,8 +255,10 @@
       contador.textContent = "Intentos: 0";
       cartas = [];
 
+      const parejasNivel = obtenerParejasParaNivel(nivelActual);
+
       etnias.forEach(etnia => {
-        parejas.forEach(par => {
+        parejasNivel.forEach(par => {
           par.forEach(rol => {
             cartas.push({ etnia, rol });
           });
@@ -220,7 +316,22 @@
 
         tablero.appendChild(div);
       });
+
+      actualizarMensajeRotacion();
     }
+
+    // Manejar cambio de nivel
+    document.querySelectorAll('.nivel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nivel-btn').forEach(b => b.classList.remove('activo'));
+        btn.classList.add('activo');
+        nivelActual = parseInt(btn.dataset.nivel);
+        crearTablero();
+      });
+    });
+
+    // Manejar cambio de orientación
+    window.addEventListener('resize', actualizarMensajeRotacion);
 
     document.getElementById("reiniciar").addEventListener("click", crearTablero);
     crearTablero();
